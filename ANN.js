@@ -4,6 +4,12 @@ function getNeuralEvent () {
     return new CustomEvent("neuralEvent", true, true);
 }
 
+LOG_LEVEL = 3;
+function log(msg, level) {
+   if(!level) level = 0; // DEBUG by default
+   if(level >= LOG_LEVEL) console.log(msg);
+}
+
 function makeNeuron( name, threshold) {
 
     /*
@@ -14,7 +20,10 @@ function makeNeuron( name, threshold) {
         // initialize private vars
         var lastReceivedSignalTimestamp = null;
         var lastSentSignalTimestamp = null;
+        // what we got
         var lastReceivedSignalValue = 0;
+        // what we sent
+        var lastSentSignalValue = 0;
 
         /**
          *  This is a map of signal type (aka name) to their respective weight
@@ -58,14 +67,25 @@ function makeNeuron( name, threshold) {
 
         // set up functional parts of this neuron
 
+        /**
+         * Sets input weights
+         * @param name
+         * @param weight
+         */
         this.setWeight = function ( name, weight) {
             weightMatrix[name] = weight;
         };
 
-        this.setScale = function (min, max, range) {
+        /**
+         * This is used to normalize inputs
+         * Should be only used by sensory neurons, since all other neursons get signsals of 1*weight or 0.
+         * @param min
+         * @param max
+         */
+        this.setScale = function (min, max) {
             this.min = min;
             this.max = max;
-            this.range = range;
+
         };
 
         this.getWeight = function ( name) {
@@ -77,20 +97,20 @@ function makeNeuron( name, threshold) {
          */
         this.sendSignal = function() {
 
-            //  old and wrong calculation - we lose detail this way
-            //var outputValue = Math.round(this.activationFunction(lastReceivedSignalValue));
-            var outputValue = this.activationFunction(lastReceivedSignalValue) * this.range;
+            // output is either nothing or 1; weights factor in to create relative significance of each input
+            var outputValue = 1;
 
-            console.log(this.name + " setting value of the axon to " + outputValue);
+            log(this.name + " setting value of the axon to " + outputValue);
             /*
                     the output is always smoothed to -1,0,1 and is scaled appropriately via weights for specific neuron inputs
              */
             neuronAxon.setAttribute("value", outputValue);
-            console.log(this.name + " sending neural event");
+            log(this.name + " sending neural event");
             neuronAxon.dispatchEvent(getNeuralEvent());
 
             // re-initialize state of the neuron
             lastSentSignalTimestamp = new Date();
+            lastSentSignalValue = 1;
             lastReceivedSignalValue = 0; // reset to "resting potential"
         };
 
@@ -98,10 +118,12 @@ function makeNeuron( name, threshold) {
          *  This is where signals are integrated and processed on each excitation (aka signal being received)
          */
         this.processSignals = function() {
-            console.log(this.name + " result of activation function: " + this.activationFunction( lastReceivedSignalValue ));
-            console.log(this.name + " threshold: " + this.threshold);
+            log(this.name + " result of activation function: " + this.activationFunction( lastReceivedSignalValue ));
+            log(this.name + " threshold: " + this.threshold);
             if( this.activationFunction( lastReceivedSignalValue ) >= this.threshold ) {
                 this.sendSignal();
+            } else {
+                lastSentSignalValue = 0;
             }
         };
 
@@ -112,7 +134,7 @@ function makeNeuron( name, threshold) {
          */
         this.processReceivedValue = function( val ) {
             lastReceivedSignalValue += val;
-            console.log("Value of " + this.name + " is set to " + lastReceivedSignalValue);
+            log("Value of " + this.name + " is set to " + lastReceivedSignalValue);
             lastReceivedSignalTimestamp = new Date();
         };
 
@@ -124,14 +146,14 @@ function makeNeuron( name, threshold) {
         this.signalReceptor = function( e ) {
 
             var signalName = e.srcElement.getAttribute("name");
-            console.log("Received signal from " + signalName);
+            log("Received signal from " + signalName);
             var weight =  this.getWeight(signalName);
-            console.log("Using weight of " + weight);
+            log("Using weight of " + weight);
             var originalValue = e.srcElement.getAttribute("value");
             var normalizedValue = this.normalize(originalValue, this.max, this.min);
-            console.log("Original value: " + originalValue );
-            console.log("Normalized value: " + normalizedValue);
-            console.log("Weighted value: " + normalizedValue* weight);
+            log("Original value: " + originalValue );
+            log("Normalized value: " + normalizedValue);
+            log("Weighted value: " + normalizedValue* weight);
 
             signalsQueue.push(makeSignal(signalName, originalValue, normalizedValue))
 
@@ -173,9 +195,9 @@ function makeNeuron( name, threshold) {
          *  Displays all received signals up-to-date
          */
         this.showSignalQueue = function() {
-            console.log(" Signals received by " + this.name + " starting from most recent:")
+            log(" Signals received by " + this.name + " starting from most recent:")
             for(var i = signalsQueue.length; i>0; ) {
-                 console.log(signalsQueue[--i].toString());
+                 log(signalsQueue[--i].toString());
             }
         }
 
@@ -186,42 +208,43 @@ function makeNeuron( name, threshold) {
          */
         this.train = function( expectedValue, learningRate) {
 
-            console.log("Commencing training exercises with learning rate of " + learningRate + "!");
+            log("Commencing training exercises of " + this.name +  " with learning rate of " + learningRate + "!", 3);
 
             // this is "y", the actual value this neuron produced last
-            var outputValue = this.activationFunction( lastReceivedSignalValue );
-            console.log("Last output value was " + outputValue);
-            console.log("Last expected value was " + expectedValue);
+            var outputValue = lastSentSignalValue;
+            log("Last output value was " + outputValue, 4);
+            log("Last expected value was " + expectedValue, 4);
 
             // this is not a sensory neuron
             if(neuronSynapses.length > 0 ) {
                 for(var i = 0; i < neuronSynapses.length; i++) {
                     var n_i = neuronSynapses[i]; //ith neuron
                     var w_i = weightMatrix[n_i.name];  // ith weight
-                    console.log("Current weight of " + n_i.name + " is set to " + w_i);
+                    log("Current weight of input from " + n_i.name + " is set to " + w_i, 4);
                     var x_i = 0; // ith input
                     var found = false;
                     for(var j = signalsQueue.length-1; j>0; j--) {
                         if(signalsQueue[j].name == n_i.name) {
                             found = true;
-                            console.log("Found matching signal: ")
-                            console.log(signalsQueue[j].toString());
+                            log("Found matching signal: ")
+                            log(signalsQueue[j].toString());
                             x_i = signalsQueue[j].normalizedValue;
                             break;
                         }
                     }
                     if(!found) {
-                        console.log("No signals from " + n_i.name);
+                        log("No signals from " + n_i.name + "; will not update weights, but will recursively train it", 3);
+                        n_i.train(expectedValue, learningRate);
                         continue;
                     }
 
                     // update ith weight
                     var w_delta = learningRate * (expectedValue - outputValue) * this.activationFunctionDerivative(x_i);
                     weightMatrix[n_i.name]+=w_delta;
-                    console.log("Weight delta is " + w_delta + " and new weight is now " + weightMatrix[n_i.name]);
+                    log("Weight delta is " + w_delta + " and new weight of input from " + n_i.name + " is now " + weightMatrix[n_i.name], 4);
 
                     // now recursively train this neuron
-                    n_i.train(this.threshold+learningRate, learningRate);
+                    n_i.train(expectedValue, learningRate);
                 }
             } else {
                 // sensory neuron - need to update weights for all sensory connections and quit
@@ -233,21 +256,23 @@ function makeNeuron( name, threshold) {
                         for(var j = signalsQueue.length-1; j>0; j--) {
                             if(signalsQueue[j].name == prop) {
                                 found = true;
-                                console.log("Found matching signal: ")
-                                console.log(signalsQueue[j].toString());
+                                log("Found matching signal: ")
+                                log(signalsQueue[j].toString());
                                 x_i = signalsQueue[j].normalizedValue;
+
+                                log("Current weight of input from " + prop + " is set to " + weightMatrix[prop], 4);
                                 break;
                             }
                         }
                         if(!found) {
-                            console.log("No signals from " + prop);
+                            log("No signals from " + prop);
                             continue;
                         }
 
                         // update ith weight
                         var w_delta = learningRate * (expectedValue - outputValue) * this.activationFunctionDerivative(x_i);
                         weightMatrix[prop]+=w_delta;
-                        console.log("Weight delta is " + w_delta + " and new weight is now " + weightMatrix[prop]);
+                        log("Weight delta is " + w_delta + " and new weight of input from " + prop + " is now " + weightMatrix[prop], 4);
                     }
                 }
 
@@ -256,7 +281,7 @@ function makeNeuron( name, threshold) {
             // clear signals queue
             signalsQueue = [];
 
-            console.log("Done training " + this.name);
+            log("Done training " + this.name, 4);
         }
 
     } // end constructor
@@ -264,7 +289,7 @@ function makeNeuron( name, threshold) {
     var n = new Neuron( name, threshold );
 
     // set default scale
-    n.setScale(0,2,2);
+    n.setScale(0,1,1);
 
     /**
      *  Tangental sigmoidal activation function
@@ -273,7 +298,14 @@ function makeNeuron( name, threshold) {
      * @return {Number}
      */
     Neuron.prototype.activationFunction = function( val ) {
-        return (Math.pow(Math.E, val) - Math.pow(Math.E, val*(-1))) / (Math.pow(Math.E, val) + Math.pow(Math.E, val*(-1)));
+        var retVal = (Math.pow(Math.E, val) - Math.pow(Math.E, val*(-1))) / (Math.pow(Math.E, val) + Math.pow(Math.E, val*(-1)));
+        // if we exceeded the scale, just use step function
+        if(isNaN(retVal)) {
+             if(val>0) return 1;
+             return 0;
+        } else {
+            return retVal;
+        }
     };
 
     /**
@@ -300,7 +332,7 @@ function makeNeuron( name, threshold) {
             return input;
         }  else {
             // scale
-            return (input - min)/(max - min)* this.range;
+            return (input - min)/(max - min);
         }
     };
 
@@ -379,14 +411,13 @@ function testLetterRecognition() {
     n3 = makeNeuron("middleHBar", 0.75);
     n4 = makeNeuron("lowerHBar", 0.75);
 
-    // set min, max and range
+    // set min and max
     // this is used to normalize inputs into a particular scale
-    // the value of the range is supposed to be somewhat above the threshold used in neuron construction
     // 2 pi = largest angle, 1 - largest unit value of a bar
-    n1.setScale(0, 2*Math.PI+1, 2);
-    n2.setScale(0, 2*Math.PI+1, 2);
-    n3.setScale(0, 2*Math.PI+1, 2);
-    n4.setScale(0, 2*Math.PI+1, 2);
+    n1.setScale(0, 2*Math.PI);
+    n2.setScale(0, 2*Math.PI);
+    n3.setScale(0, 2*Math.PI);
+    n4.setScale(0, 2*Math.PI);
 
     // sensors - translate stimuli into neural excitation
     s1 = makeSensor("vBarAngle");
@@ -427,10 +458,10 @@ function testLetterRecognition() {
     n4.registerSensor(s14, Math.random());
 
     // now create the hidden layer neurons
-    n5 = makeNeuron("hiddenLayer1", 0.85);
-    n6 = makeNeuron("hiddenLayer2", 0.85);
-    n7 = makeNeuron("hiddenLayer3", 0.85);
-    n8 = makeNeuron("hiddenLayer4", 0.85);
+    n5 = makeNeuron("hiddenLayer1", 0.75);
+    n6 = makeNeuron("hiddenLayer2", 0.75);
+    n7 = makeNeuron("hiddenLayer3", 0.75);
+    n8 = makeNeuron("hiddenLayer4", 0.75);
 
     // connect input to hidden layer
     n1.registerNeuronConnection(n5, Math.random());
@@ -455,8 +486,8 @@ function testLetterRecognition() {
 
 
     // create the output layer
-    n9 = makeNeuron("outputE", 0.90);
-    n10 = makeNeuron("outputNonE", 0.90);
+    n9 = makeNeuron("outputE", 0.60);
+    n10 = makeNeuron("outputNonE", 0.60);
 
     // finally, connect neurons from hidden layer to neurons in output layer
     n5.registerNeuronConnection(n9, Math.random());
@@ -471,57 +502,57 @@ function testLetterRecognition() {
     n8.registerNeuronConnection(n9, Math.random());
     n8.registerNeuronConnection(n10,  (-1)* Math.random());
 
+    // run training exercises to see if we can converge to correct answer
+    for(x=0; x<100; x++) {
+        setTimeout(function() {
+            // 1st training set - perfect score
+            s1.triggerSensor(Math.PI/2); // alpha
+            s2.triggerSensor(n1.max);    // height
 
-    n9.setScale(0,1,1);
-    n10.setScale(0,1,1);
+            s3.triggerSensor(Math.PI/2); // theta
+            s4.triggerSensor(1)          // dy
+            s5.triggerSensor(0);         // x_0
+            s6.triggerSensor(n1.max*0.5);// x_1
 
+            s7.triggerSensor(Math.PI/2);  // theta
+            s8.triggerSensor(n1.max*0.5)  // dy
+            s9.triggerSensor(0);          // x_0
+            s10.triggerSensor(n1.max*0.5);// x_1
 
-    // start receiving data
+            s11.triggerSensor(Math.PI/2); // theta
+            s12.triggerSensor(0)          // dy
+            s13.triggerSensor(0);         // x_0
+            s14.triggerSensor(n1.max*0.5);// x_1
 
-    // 1st training set - perfect score
-    s1.triggerSensor(Math.PI/2); // theta
-    s2.triggerSensor(10);        // height
+            n9.train(1, 0.2);
+            n10.train(0, 0.2);
+        },11);
 
-    s3.triggerSensor(Math.PI/2); // alpha
-    s4.triggerSensor(10)         // dy
-    s5.triggerSensor(0);         // x_0
-    s6.triggerSensor(5);         // x_1
+        // 2nd training set  - vertical bars short, angled up and down, uneven
+        setTimeout(function(){
+            s1.triggerSensor(Math.PI/2);
+            // theta
+            s2.triggerSensor(1);        // height
 
-    s7.triggerSensor(Math.PI/2); // alpha
-    s8.triggerSensor(5)          // dy
-    s9.triggerSensor(0);         // x_0
-    s10.triggerSensor(5);        // x_1
+            s3.triggerSensor(85*Math.PI/360); // alpha
+            s4.triggerSensor(n1.max*0.978)         // dy
+            s5.triggerSensor(0);         // x_0
+            s6.triggerSensor(n1.max*0.29);         // x_1
 
-    s11.triggerSensor(Math.PI/2); // alpha
-    s12.triggerSensor(0)          // dy
-    s13.triggerSensor(0);         // x_0
-    s14.triggerSensor(5);         // x_1
+            s7.triggerSensor(Math.PI/2); // alpha
+            s8.triggerSensor(n1.max*0.5)          // dy
+            s9.triggerSensor(0);         // x_0
+            s10.triggerSensor(n1.max*0.25);        // x_1
 
-    n9.train(1, 0.5);
-    n10.train(0, 0.5);
+            s11.triggerSensor(95*Math.PI/360); // alpha
+            s12.triggerSensor(0)          // dy
+            s13.triggerSensor(0);         // x_0
+            s14.triggerSensor(n1.max*0.32);         // x_1
 
-    // 2nd training set  - vertical bars short, angled up and down, uneven
-    s1.triggerSensor(Math.PI/2); // theta
-    s2.triggerSensor(10);        // height
-
-    s3.triggerSensor(85*Math.PI/360); // alpha
-    s4.triggerSensor(9.78)         // dy
-    s5.triggerSensor(0);         // x_0
-    s6.triggerSensor(2.9);         // x_1
-
-    s7.triggerSensor(Math.PI/2); // alpha
-    s8.triggerSensor(5)          // dy
-    s9.triggerSensor(0);         // x_0
-    s10.triggerSensor(2.5);        // x_1
-
-    s11.triggerSensor(95*Math.PI/360); // alpha
-    s12.triggerSensor(0)          // dy
-    s13.triggerSensor(0);         // x_0
-    s14.triggerSensor(3.2);         // x_1
-
-    n9.train(1, 0.45);
-    n10.train(0, 0.45);
-
+            n9.train(1, 0.2);
+            n10.train(0, 0.2);
+        },13);
+    }
 
     /*
         this is just for general debugging to ensure that
