@@ -1,14 +1,28 @@
-
-// Event Object
-function getNeuralEvent () {
-    return new CustomEvent("neuralEvent", true, true);
-}
-
-LOG_LEVEL = 3;
-function log(msg, level) {
-   if(!level) level = 0; // DEBUG by default
-   if(level >= LOG_LEVEL) console.log(msg);
-}
+/******************************************************************************
+*
+*     This file demonstrates a possible implementation of a neural network
+*     algorithm inspired by the biological phenomenon of interneuronal communication
+*     in the brain.
+*
+*     For a detailed treatment of the subject, check out docs/neuron.pdf file.
+*
+*     This implementation allows one to create an n-level neural network for signal processing
+*     
+*     File is organized as follows:
+*
+*      1) makeNeuron function - main constructor function that creates a Neuron object with all of the APIs 
+*      needed for interneuronal communication.
+*      
+*      2) makeSensor function - constructor for creating sensors for sensory neurons (lowest level) 
+*      
+*      3) makeSignal function - abstraction for creating signals that will be channeled between neurons
+*      
+*      4) test function that demonstrates sample usage
+*
+*      5) Misc helper functions
+*
+*
+*******************************************************************************/
 
 function makeNeuron( name, threshold) {
 
@@ -582,4 +596,15 @@ function testLetterRecognition() {
 
 
 
+}
+
+// Event Object
+function getNeuralEvent () {
+    return new CustomEvent("neuralEvent", true, true);
+}
+
+LOG_LEVEL = 3;
+function log(msg, level) {
+   if(!level) level = 0; // DEBUG by default
+   if(level >= LOG_LEVEL) console.log(msg);
 }
