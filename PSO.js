@@ -42,11 +42,6 @@ pso.totalRuns = 0;
  */
 pso.particles = [];
 /**
- * test-specific array of interval Ids needed to stop the simulation when goal is reached
- * @type {Array}
- */
-pso.intervals = [];
-/**
  * determines the effect of current velocity on the next velocity value
  * @type {Number}
  */
@@ -59,26 +54,26 @@ pso.maxRuns = 10000;
 /*
     goal parameters for testing
  */
-pso.targetX = 600;
-pso.targetY = 350;
+pso.targetX = 800*Math.random();
+pso.targetY = 700*Math.random();
 pso.targetZ = -10;
 
 // scoring vector
 pso.Vector = function() {
     this.x = {
-        result: 0, value : 0
+        result: 0, value : 0, runsMissingGoal:0
     };
     this.y = {
-        result: 0, value : 0
+        result: 0, value : 0, runsMissingGoal:0
     };
     this.z = {
-        result: 0, value : 0
+        result: 0, value : 0, runsMissingGoal:0
     };
 };
 
 pso.gbest = new pso.Vector();
 
-LOG_LEVEL = 1;
+LOG_LEVEL = 2;
 /**
  * General purpose logging function
  *
@@ -103,21 +98,38 @@ pso.ScoreCard = function(scoringFunction, pbest, particleName) {
     //var timeSlot = new Array();
     this.pbest = pbest;
 
+    /*
+       this is used for testing/demo purposes and could be extracted
+     */
+    var bestXElement = document.getElementById("bestX");
+    var bestYElement = document.getElementById("bestY");
+    var bestZElement = document.getElementById("bestZ");
+
     this.addScore = function (val) {
         //timeSlot.push(val);
         pso.log("Current local best for " + this.particleName + " is x:" + this.pbest.x.value + ",y:" + this.pbest.y.value + ",z:" + this.pbest.z.value ,0);
         var result = this.scoringFunction(val);
         for(var i in result) {
             if(result.hasOwnProperty(i))  {
+                this.pbest[i].runsMissingGoal++;
                 // update local best
                 if(this.pbest[i].result < result[i].result) {
                     this.pbest[i] = result[i];
-                    pso.log(this.particleName + ": New local best: for " + i + ": " + pbest[i].result + "," + pbest[i].value,1);
+                    this.pbest[i].runsMissingGoal = 0;
+                    pso.log(this.particleName + ": New local best: for " + i + ". Score: " + pbest[i].result + ",Value: " + pbest[i].value,1);
                 }
                 // update global best
                 if(pso.gbest[i].result < result[i].result) {
                     pso.gbest[i] = result[i];
-                    pso.log(this.particleName + ": New global best: for " + i + ": " + pso.gbest[i].result + "," + pso.gbest[i].value,1);
+                    this.pbest[i].runsMissingGoal = 0;
+                    pso.log(this.particleName + ": New global best: for " + i + ". Score: " + pso.gbest[i].result + ", Value:" + pso.gbest[i].value,1);
+
+                    /*
+                     this is used for testing/demo purposes and could be extracted
+                     */
+                    if(i=="x") bestXElement.innerHTML = pso.gbest[i].value;
+                    if(i=="y") bestYElement.innerHTML = pso.gbest[i].value;
+                    if(i=="z") bestZElement.innerHTML = pso.gbest[i].value;
                 }
             }
         }
@@ -142,6 +154,8 @@ pso.Particle = function( scoringVector, scoringFn, inertia, localAcceleration, n
     this.inertia = inertia;
     this.localAcceleration = localAcceleration;
     this.node = node;
+    this.isRunning = false;
+    this.unsuccessfulRunThreshold = 15;
 
     // use scoring vector to create the values vector
     // initialize position/velocity vector
@@ -158,11 +172,17 @@ pso.Particle = function( scoringVector, scoringFn, inertia, localAcceleration, n
 
     this.getNextVelocityVector = function(pos, velocity) {
 
-        var r1 =  Math.random();
-        var r2 = Math.random();
-
         for(var i in velocity) {
+            var r1 =  Math.random();
+            var r2 = Math.random();
+
             if(velocity.hasOwnProperty(i))  {
+                if(this.pbest[i].runsMissingGoal > this.unsuccessfulRunThreshold) {
+                   this.pbest[i].result = 0;
+                   this.localAcceleration = pso.defaultLocalAcceleration;
+                   pso.globalAcceleration+=0.00005;
+                   pso.log(this.name + ": trying to improve result by re-starting optimization for " + i + " dimension", 1);
+                }
                 velocity[i] = velocity[i]*this.inertia +
                     this.localAcceleration * r1 * (this.pbest[i].value  - pos[i]) * pso.timeIncrement +
                     pso.globalAcceleration * r2 * (pso.gbest[i].value - pos[i]) * pso.timeIncrement;
@@ -192,13 +212,34 @@ pso.Particle = function( scoringVector, scoringFn, inertia, localAcceleration, n
         this.scoreCard.addScore(this.vector.pos);
 
         //update node's position
-        pso.setPosition(this.node, this.vector.pos.x, this.vector.pos.y);
+        pso.setPosition(this.node, this.vector.pos.x, this.vector.pos.y, this.vector.z);
 
         // slowly start favoring social interaction over cognitive
         this.localAcceleration-=0.0003;
         pso.globalAcceleration-=0.0001;
     };
 
+    this.start = function(maxRuns) {
+        // staggered timeout values
+        var t1=611;
+        var t2=923;
+        var that = this;
+
+        var runInt = setInterval(function(){
+            that.moveParticle();
+            that.isRunning = true;
+            pso.totalRuns++;
+        },t2);
+
+        var checkInt = setInterval(function(){
+              if(pso.isGoodEnough(that.pbest) || pso.totalRuns > maxRuns) {
+                  clearInterval(runInt);
+                  clearInterval(checkInt);
+                  that.isRunning = false;
+              }
+        },t1);
+
+    };
 };
 
 /**********************************   Test Setup      ****************************************************************
@@ -245,16 +286,10 @@ pso.isGoodEnough = function(best) {
 pso.createParticleNode = function (id) {
     var node = document.createElement("img");
     node.setAttribute("id", id);
-    //node.setAttribute("src","http://tuescher.de/bilder/insektenschutz/insektenwissen/w_ameise.jpg");
-    //node.setAttribute("src","http://www.freestockphotos.biz/pictures/11/11277/ant.png");
     node.setAttribute("src","images/ant.gif");
     node.setAttribute("width", "52px");
     node.setAttribute("height", "42px");
-    pso.setPosition(node, Math.random()* 1024, Math.random()*768);
-    var angle = Math.floor(Math.random()*360) + "deg";
-    node.setAttribute("transform", "rotate(" + angle + ")");
-    //node.setAttribute("-ms-transform", "rotate(" + angle + ")");
-    //node.setAttribute("-webkit-transform", "rotate(" + angle + ")");
+    pso.setPosition(node, Math.random()* 1024, Math.random()*768, 1);
     document.body.appendChild(node);
     return node;
 };
@@ -266,20 +301,18 @@ pso.createParticleNode = function (id) {
  * @param x
  * @param y
  */
-pso.setPosition = function(node, x,y) {
-    node.setAttribute("style", "z-index:2;position: absolute; top:" + y + "px;left: " + x + "px;");
+pso.setPosition = function(node, x,y, z) {
+    var zIndex = Math.floor(z);
+    node.setAttribute("style", "z-index:" + zIndex + ";position: absolute; top:" + y + "px;left: " + x + "px;");
+    if(node.getAttribute("id") === "goal") {
+        var targetXElement = document.getElementById("targetX");
+        var targetYElement = document.getElementById("targetY");
+        var targetZElement = document.getElementById("targetZ");
+        targetXElement.innerHTML = x+100; // half of target image width is added to center
+        targetYElement.innerHTML = y+100; // half of target image height is added to center
+        targetZElement.innerHTML = pso.targetZ;
+    }
 };
-
-// set up target(goal) DOM Node
-(function(){
-    var goalNode = document.createElement("img");
-    goalNode.setAttribute("src", "images/honey.png");
-    goalNode.setAttribute("width", "200px");
-    goalNode.setAttribute("height", "200px");
-    pso.setPosition(goalNode, pso.targetX-100, pso.targetY-100);
-    document.body.appendChild(goalNode);
-    pso.goalNode = goalNode;
-})();
 
 /**
  * Function to move goal node, thereby changing the goal parameters
@@ -312,47 +345,47 @@ pso.moveGoalNode = function(e){
         default:
             break;
     }
-    pso.setPosition(pso.goalNode, pso.targetX-50, pso.targetY-50);
+    pso.setPosition(pso.goalNode, pso.targetX-100, pso.targetY-100, 99);
+
 };
 
 /**
  *  function that triggers test runs; gets called on document load
  */
 pso.startSimulation = function() {
-    // staggered timeout values
-    var t1=611;
-    var t2=923;
-    var t3=301;
+
+    // set up target(goal) DOM Node
+    (function(){
+        var goalNode = document.createElement("img");
+        goalNode.setAttribute("src", "images/honey.png");
+        goalNode.setAttribute("width", "200px");
+        goalNode.setAttribute("height", "200px");
+        goalNode.setAttribute("id", "goal");
+        pso.setPosition(goalNode, pso.targetX-100, pso.targetY-100, 99);
+        document.body.appendChild(goalNode);
+        pso.goalNode = goalNode;
+    })();
 
     // number of particles to generate
-    var numParticles = 20;
+    var numParticles = 80;
 
     for(var i=1; i<=numParticles ; i++) {
-        pso.particles.push(new pso.Particle(new pso.Vector(), pso.successFn, pso.defaultInertia, pso.defaultLocalAcceleration, pso.createParticleNode("p" + i)));
-        var intervalId= setInterval(function() {
-            var p = pso.particles.pop();
-            p.moveParticle();
-            pso.totalRuns++;
-
-            setTimeout(function(){
-                pso.particles.push(p);
-            },t1);
-
-        }, t2+i);
-        pso.intervals.push(intervalId);
+        var p = new pso.Particle(new pso.Vector(), pso.successFn, pso.defaultInertia, pso.defaultLocalAcceleration, pso.createParticleNode("p" + i));
+        pso.particles.push(p);
+        p.start(pso.maxRuns);
     }
 
-    // set up guard condition to terminate test
-    var checkInt = setInterval(function(){
-        if(pso.totalRuns> pso.maxRuns || pso.isGoodEnough(pso.gbest)) {
-            for(var i=0; i<20; i++) {
-                clearInterval(pso.intervals[i]);
-            }
+    // timeout value
+    var t1=1023;
+
+    // check if simulation is finished
+    var checkInt = setInterval( function() {
+        if(pso.isGoodEnough(pso.gbest)) {
             clearInterval(checkInt);
-            pso.log("Terminating after " + pso.totalRuns + " runs. Gbest values are: x-" + pso.gbest.x.value + ", y-" + pso.gbest.y.value ,4);
+            pso.log("Goal found after " + pso.totalRuns + " runs. Gbest values are: x: " + pso.gbest.x.value + ", y: " + pso.gbest.y.value ,4);
             pso.totalRuns = 0;
         }
-    }, t3);
+    }, t1);
 };
 
 

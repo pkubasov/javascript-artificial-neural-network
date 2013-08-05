@@ -13,9 +13,18 @@
 </head>
 <body onkeydown="pso.moveGoalNode(event)" onload="pso.startSimulation()" >
     <h1 style="text-align: center;color: #000000;">
-        Particle Swarm Optimization
-        <br/>(Use arrow keys to move the mound)
+        Particle Swarm Optimization - Dynamic Goal Seeking
+        <br/>(Use arrow keys to move the target)
     </h1>
+
+    <div id="tableau" style="position:fixed;right:10px;top:10px;color: black;background-color: white; border-color:black; border-style:solid; border-width: 1px">
+        <em>Target X:</em> <span id="targetX"></span> <br/>
+        <em>Target Y:</em> <span id="targetY"></span> <br/>
+        <em>Target Z:</em> <span id="targetZ"></span><br/>
+        <em>Best X:</em> <span id="bestX"></span> <br/>
+        <em>Best Y:</em> <span id="bestY"></span> <br/>
+        <em>Best Z:</em> <span id="bestZ"></span>
+    </div>
 
     <script type="text/javascript"  src="PSO.js"></script>
 
