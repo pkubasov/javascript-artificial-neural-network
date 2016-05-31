@@ -66,3 +66,29 @@ function found( l) {
   dfs(tree1, found, 3);
 
  */
+ 
+ /**
+  * Function that computes similarity between two vectors
+  * vector A and B should be arrays
+  */ 
+ function cosineSim(vectorA, vectorB) { 
+    if (!vectorA instanceof Array || ! vectorB instanceof Array) {
+       console.log("Both vectors must be arrays");
+       return null;
+    }
+    var length = Math.max(vectorA.length, vectorB.length);
+    var dotProduct=0; 
+    var normA=0; 
+    var normB=0; 
+    for(var i=0; i<length;i++) { 
+       var dim1= isNaN(vectorA[i])? 0 : vectorA[i];
+       var dim2 = isNaN(vectorB[i])? 0: vectorB[i];
+       dotProduct+=dim1*dim2; 
+       normA+=Math.pow(dim1,2);
+       normB+=Math.pow(dim2,2);
+       
+    } 
+    if(normA==0 || normB=0) return 0;
+    return dotProduct/( Math.sqrt(normA) * Math.sqrt(normB) ); 
+    
+ }
