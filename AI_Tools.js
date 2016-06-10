@@ -92,3 +92,21 @@ function found( l) {
     return dotProduct/( Math.sqrt(normA) * Math.sqrt(normB) ); 
     
  }
+ 
+ // init graph data structure
+ var graph={nodes:[]};
+ /**
+  *  Add directed weighted edges to a graph 
+  * This takes advantage of how JS handles sparse arrays
+  * 
+  **/
+ function createEdge(startNode, endNode, weight) {
+    if (typeof(graph.nodes[startNode])==='undefined') { 
+       graph.nodes[startNode]=[];
+    } 
+    if (typeof(graph.nodes[startNode][endNode])=='object') { 
+       console.log("already exists");
+       return null;
+    }
+    graph.nodes[startNode][endNode]={w:weight};
+ }
