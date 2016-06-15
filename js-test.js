@@ -68,6 +68,7 @@ PKNS.Stack = function(size)
 PKNS.Graph = function() {
 	
 	var arr = [];
+	var meta=[];
 	
 	return {
 		addNode: function(id) {
@@ -78,6 +79,12 @@ PKNS.Graph = function() {
 				console.log("Node already exists in the graph.");
 				return null;
 			}
+		},
+		setNodeMetaInfo: function(id,obj) {
+			meta[id]= obj;
+		},
+		getNodeMetaInfo: function(id) {
+			return meta[id];
 		},
 		addEdge: function(fromId, toId, weight) {
 			if (undef(arr[fromId])) {
@@ -165,6 +172,7 @@ PKNS.Graph = function() {
 }
 
 // usage
+/*
 g=new PKNS.Graph();
 g.addEdge(0,1);
 g.addEdge(3,4)
@@ -179,7 +187,7 @@ g.topologicalSort();
 g2=new PKNS.Graph()
 g2.addEdges([ [0,1],[0,2],[0,3],[3,4],[2,1],[4,2],[4,5],[5,1],[1,6],[6,7],[6,8],[7,9],[9,10],[8,10] ]);
 g2.topologicalSort();
-
+*/
 
 
 
