@@ -125,8 +125,8 @@ function drawNodes(arr, graph) {
 	var y_width=height/y_sections;	
 	var nodesDrawn =0;	
 	var x=1;
-	var y=1;
-	var padding = 15;
+	var y=0;
+	var padding = 45;
 	var lineWidth=3.5;
 
 	arr.forEach(function(val, index, arrayObj) {
@@ -210,15 +210,15 @@ function drawArrowHead(context, from, to, headlen){
 }
 
 
-
-
 /////////////////////////////////////////////////////      Test Usage:    /////////////////////////////////////////////////
 
 // create graph
 g2=new PKNS.Graph();
 
 // load edges 
-g2.addEdges([ [0,1],[0,2],[0,3],[3,4],[2,1],[4,2],[4,5],[5,1],[1,6],[6,7],[6,8],[7,9],[9,10],[8,10],[10,11],[10,12],[11,13],[12,13],[12,14],[13,16],[13,15],[15,14],[15,17],[17,18],[18,14] ]);
+g2.addEdges([ [0,1],[0,2],[0,3],[3,4],[2,1],[4,2],[4,5],[5,1],[1,6],[6,7],
+			  [6,8],[7,9],[9,10],[8,10],[10,11],[10,12],[11,13],[12,13],
+			  [12,14],[13,16],[13,15],[15,14],[15,17],[17,18],[18,14] ]);
 
 // sort the edges in a topological order 
 var nodeArray = g2.topologicalSort();
@@ -262,6 +262,7 @@ for(var i=0;i<=50;i++) {
 }
 
 */
+
 </script>
 </body>
 </html>
