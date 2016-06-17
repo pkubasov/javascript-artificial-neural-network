@@ -171,6 +171,16 @@ PKNS.Graph = function() {
 	};
 }
 
+PKNS.Heap = function(arr) {
+	
+	
+	
+	return {
+		
+	}
+	
+}
+
 // usage
 /*
 g=new PKNS.Graph();
@@ -189,8 +199,92 @@ g2.addEdges([ [0,1],[0,2],[0,3],[3,4],[2,1],[4,2],[4,5],[5,1],[1,6],[6,7],[6,8],
 g2.topologicalSort();
 */
 
+//////////////////   SICP ///////////////////////////
 
 
+
+
+function fixed_point(f,start,tolerance) { 
+	var closeEnough = function(u,v) { return Math.abs(u-v)<tolerance; };
+	if( closeEnough(start, f(start))) { return start;} 
+	else { console.log("Last value: " + start); return fixed_point(f, f(start), tolerance);} 
+}
+
+
+function averageDamp(f) {
+	// private function 
+    var average=function(x, y) { return (x+y)/2; }
+	
+	return function(x) {
+		return average(x, f(x));
+	};
+}
+
+function sqrt(x) { 
+	// private function to average damp - the function whose fixed point approaches the value of square root
+	var f=function(y) {return x/y}; 
+	return fixed_point(averageDamp(f), 1, 0.00001); 
+}
+
+function derivative (f) {
+	return function(x) {
+		var dx = 0.0001;
+		return (f(x)-f(x+dx))/dx;
+	};
+}
+function newtonMethod(f, x) {
+	var df = derivative(f);	
+	return fixed_point(function(y) { return y - f(y)/df(y);} , x, 0.0001);
+}
+
+function gcd(x,y) {
+	var lesser = x>y ? y : x;
+	var greater = x>y? x : y;
+	
+	if(greater%lesser ==0) return lesser;
+	
+	var x=1;
+	var gcdNum = 1;
+	
+	while(Math.floor(lesser/x++)>1) {
+		if(greater%x ==0 && lesser%x == 0) {
+			gcdNum*= x;
+			greater/=x;
+			lesser/=x;
+			x=1;
+		}
+	}
+	return gcdNum;
+}
+
+function cons(a,b) {
+	return function(x) {
+	    if(x!=1 && x!=2) throw new Error("Arguments can only be 1 or 2");
+		return x==1? a: b;
+	};
+}
+
+function car(f) {
+	if(f==null) { return null; /* reached end of the list */ }
+	if(typeof f!=='function') throw new Error("Invalid object used as argument");
+	return f(1);
+}
+
+function cdr(f) {
+	if(f==null) { return null; /* reached end of the list */ }
+	if(typeof f!=='function') throw new Error("Invalid object used as argument");
+	return f(2);
+}
+
+function list() {
+	if(arguments.length==0) {
+		return null;
+	} else if(arguments.length==1) {
+		return cons(arguments[0], null);
+	} else {
+		return cons( arguments[0], arguments.callee.apply(this, Array.prototype.slice.call(arguments,1)));
+	}
+}
 
 
 
