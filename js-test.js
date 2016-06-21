@@ -114,10 +114,20 @@ PKNS.Graph = function() {
 				this.addEdge(x[0],x[1],x[2]);
 			}, this);
 		},
-		topologicalSort: function() {
+		/**
+		 * @param countObj optional in/out object that allows the function to set # of possible topological orderings as "count" field, 
+		 * and also allows user to specify nth order he wants returned by setting "ordinal" field in the countObj; any number that turns 
+		 * out to be greater than the N possible orders is ignored and the first available order is returned 
+		 */
+		topologicalSort: function(countObj ) {
 			if(arr.length==0) return null;
 			var q=new PKNS.Queue();
 			var indegreeArray = [];
+			
+			if(countObj) {
+				/// init count of possible sorts
+				countObj.count=1;
+			}
 			
 			var nodesLeft=0;
 			
@@ -144,13 +154,30 @@ PKNS.Graph = function() {
 				
 				if(!indegreeArray.some(f1)) {
 					console.log("There are cycles in the graph, cannot create topological sort.");
+					if(countObj) countObj.count=0;
 					return null;
 				}			
 				
-				var idx = indegreeArray.findIndex(f1);
+				var idx = indegreeArray.findIndex(f1);				
 				while(idx!=-1) {					
+					
+					// check for alternatives
+					var start=idx+1;
+					var newIndex = indegreeArray.indexOf(0,start);											
+					while(newIndex!=-1 && start < indegreeArray.length) {						
+						if(newIndex!=-1 && !q.contains(newIndex)) {
+							if(countObj) {
+								countObj.count+=1;							
+								if(countObj.ordinal && countObj.ordinal == countObj.count) idx=newIndex; // return nth topological sort
+							}
+						}
+						start=newIndex+1;
+						newIndex = indegreeArray.indexOf(0,start);
+					}
+										
 					nodesLeft--;				
-					q.push(idx);
+					q.push(idx);				
+					
 					// update indegree of connected nodes
 					arr[idx].forEach(function(i, k){
 						indegreeArray[k]--;
@@ -201,15 +228,11 @@ g2.topologicalSort();
 
 //////////////////   SICP ///////////////////////////
 
-
-
-
 function fixed_point(f,start,tolerance) { 
 	var closeEnough = function(u,v) { return Math.abs(u-v)<tolerance; };
 	if( closeEnough(start, f(start))) { return start;} 
 	else { console.log("Last value: " + start); return fixed_point(f, f(start), tolerance);} 
 }
-
 
 function averageDamp(f) {
 	// private function 
@@ -232,9 +255,17 @@ function derivative (f) {
 		return (f(x)-f(x+dx))/dx;
 	};
 }
+
 function newtonMethod(f, x) {
 	var df = derivative(f);	
 	return fixed_point(function(y) { return y - f(y)/df(y);} , x, 0.0001);
+}
+
+/**
+* determines if n is a power of 2
+*/
+function isP2(n) { 
+	return (n & (n - 1)) == 0;
 }
 
 function gcd(x,y) {
@@ -244,10 +275,20 @@ function gcd(x,y) {
 	if(greater%lesser ==0) return lesser;
 	
 	var x=1;
-	var gcdNum = 1;
+	var gcdNum = 1;	
 	
 	while(Math.floor(lesser/x++)>1) {
-		if(greater%x ==0 && lesser%x == 0) {
+		var mod1, mod2;
+		if(isP2(x)) {
+			// x is a power of two
+			mod1 = greater & (x-1);
+			mod2 = lesser & (x-1);
+		} else {
+			mod1 = greater%x;
+			mod2 = lesser%x
+		}
+		
+		if(mod1 ==0 &&  mod2 == 0) {
 			gcdNum*= x;
 			greater/=x;
 			lesser/=x;
@@ -279,8 +320,6 @@ function cdr(f) {
 function list() {
 	if(arguments.length==0) {
 		return null;
-	} else if(arguments.length==1) {
-		return cons(arguments[0], null);
 	} else {
 		return cons( arguments[0], arguments.callee.apply(this, Array.prototype.slice.call(arguments,1)));
 	}
