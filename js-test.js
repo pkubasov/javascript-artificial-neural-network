@@ -64,7 +64,6 @@ PKNS.Stack = function(size)
 	};	
 }
 
-
 PKNS.Graph = function() {
 	
 	var arr = [];
@@ -198,16 +197,6 @@ PKNS.Graph = function() {
 	};
 }
 
-PKNS.Heap = function(arr) {
-	
-	
-	
-	return {
-		
-	}
-	
-}
-
 // usage
 /*
 g=new PKNS.Graph();
@@ -225,6 +214,209 @@ g2=new PKNS.Graph()
 g2.addEdges([ [0,1],[0,2],[0,3],[3,4],[2,1],[4,2],[4,5],[5,1],[1,6],[6,7],[6,8],[7,9],[9,10],[8,10] ]);
 g2.topologicalSort();
 */
+
+
+
+/**
+ * Binary Heap data structure
+ * allows storage of numbers or objects in a min or max heap (see params)
+ *
+ * @param arr_in array of numbers or objects to store in a heap; if array of objects is passed in objects must define value() method used for comparisons
+ * @param m mode allows either "min" or "max" ; default value is "max"
+ *
+*/
+PKNS.Heap = function(arr_in, m) {
+	
+	var mode;
+	
+	if(!m) mode = "max"; //mode can be "max" or "min"
+	var operator = mode=="max" ? Math.max : Math.min;
+	var storage_type = typeof arr_in[0];
+	if(storage_type!="number" && storage_type!="object") {
+		throw new Error("Only number and object arrays are supported");
+		return null;
+	}
+	if(storage_type=="object" && !arr_in.every( function(o) { return typeof o.value !== "undefined" && !isNaN(o.value())})) {
+		throw new Error("Object arrays must define value() method for all objects that return a numeric value");
+		return null;
+	}
+	
+	var arr = arr_in;
+	// insert null element in position 0 - unused
+	arr.splice(0,0,null);
+	buildHeap();
+	
+	function heapify ( i ) {
+		
+		var left = 2*i;
+		var right = 2*i + 1;
+		var largest = i;
+		
+		if(storage_type=="number") {
+			if(left < arr.length && operator(arr[left],arr[largest])===arr[left]) {
+				largest = left;
+			} 
+			
+			if ( right < arr.length && operator(arr[right],arr[largest])===arr[right]) {
+				largest = right;
+			}
+		} else {
+			if(left < arr.length && operator(arr[left].value(),arr[largest].value())===arr[left].value()) {
+				largest = left;
+			} 
+			
+			if ( right < arr.length && operator(arr[right].value(),arr[largest].value())===arr[right].value()) {
+				largest = right;
+			}
+		}
+		
+		if(largest!=i) {
+			swap(i, largest);			
+			heapify(largest);
+		}		
+	}
+	
+	function swap(i1, i2) {
+		var temp = arr[i1];
+		arr[i1]=arr[i2];
+		arr[i2]=temp;
+	}
+	
+	function buildHeap() {
+		for(var i = Math.ceil(arr.length/2) ; i>=1; i--) {
+			heapify(i);
+		}
+	}
+	
+	function increaseKey(i, val) {
+		if(storage_type=="number") {
+			if(val < arr[i]) {
+				throw new Error("New values is less than the current one");
+				return;
+			}
+			arr[i] = val;
+			while(i>1 && arr[Math.floor(i/2)] < arr[i]) {
+				swap(i, Math.floor(i/2));
+				i = Math.floor(i/2);
+			}
+		} else {
+			if(val.value() < arr[i].value()) {
+				throw new Error("New values is less than the current one");
+				return;
+			}
+			arr[i] = val;
+			while(i>1 && arr[Math.floor(i/2)].value() < arr[i].value()) {
+				swap(i, Math.floor(i/2));
+				i = Math.floor(i/2);
+			}
+		}
+		
+	}
+	
+	function decreaseKey(i, val) {
+		if(storage_type=="number") {
+			if(val > arr[i]) {
+				throw new Error("New values is greater than the current one");
+				return;
+			}
+			arr[i] = val;
+			while(i<= Math.floor(arr.length/2) && (arr[2*i] < arr[i] || arr[2*i+1] < arr[i])) {
+				var swap_i = Math.min(arr[2*i], arr[2*i+1])==arr[2*i] ? 2*i : 2*i+1; 
+				swap(i, swap_i );
+				i = swap_i;
+			}
+		} else {			
+			if(val.value() > arr[i].value()) {
+				throw new Error("New values is greater than the current one");
+				return;
+			}
+			arr[i] = val;
+			while(i<= Math.floor(arr.length/2) && (arr[2*i].value() < arr[i].value() || arr[2*i+1].value() < arr[i].value())) {
+				var swap_i = Math.min(arr[2*i], arr[2*i+1])==arr[2*i] ? 2*i : 2*i+1; 
+				swap(i, swap_i );
+				i = swap_i;
+			}
+		}
+	}
+	
+	return {		
+		
+		insertElement: function( val ) {
+			
+			if(typeof val !== storage_type) {
+				throw new Error("Incompatible value for this heap");
+				return null;
+			}
+			
+			if(storage_type=="object" && (typeof val.value === "undefined" || isNaN(val.value()))) {
+				throw new Error("Object's value() method is not properly defined.");
+				return null;
+			}
+			
+			if(mode=="max") {
+				if(storage_type=="number") {
+					arr.push(val-1);
+				} else {
+					// need to create a dummy object with greater value
+					var value = val.value();
+					var o = {value: function() { return val.value()-1}};
+					arr.push(o);
+				}
+				increaseKey (arr.length-1, val);				
+			} else {
+				if(storage_type=="number") {
+					arr.splice(1,0, val+1);
+				} else {
+					// need to create a dummy object with greater value
+					var value = val.value();
+					var o = {value: function() { return val.value()+1}};
+					arr.splice(1,0,o);
+				}
+				decreaseKey(1, val);
+			}
+		},
+		
+		getSortedArray: function() {
+			// copy existing arr
+			var arr_temp = [].concat(arr);
+			
+			var return_arr = [];
+			
+			while(arr.length>1) {
+				return_arr.push(arr.splice(1,1)[0]);
+				buildHeap();
+			}
+			arr = arr_temp;
+			return return_arr;
+			
+		}
+		
+	};
+	
+}
+
+//usage
+/*
+
+function Car(year) { this.year=year; }
+Car.prototype.value = function() { return this.year }
+var cars = [];
+var x=0;
+while(x++< 50) cars.push(new Car( Math.floor(Math.random()*2000) ));
+
+var heap = new PKNS.Heap(cars, "min")	
+var sorted = heap.getSortedArray();
+sorted.forEach(function(x) { console.log(x.year) });
+
+heap = new PKNS.Heap([9,2,0,-1,3,11,1,2,6,1]); // max heap by default
+heap.getSortedArray();
+heap.insertElement(52);
+heap.getSortedArray();
+
+*/
+
+
+
 
 //////////////////   SICP ///////////////////////////
 
