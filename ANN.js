@@ -386,7 +386,7 @@ function buildElement(name, value) {
     element.setAttribute("hidden", true);
     element.setAttribute("name", name);
     element.setAttribute("value", value);
-    document.body.appendChild(element);
+    document.firstChild.appendChild(element);
     return element;
 }
 
@@ -598,9 +598,29 @@ function testLetterRecognition() {
 
 }
 
+(function () {
+
+  if ( typeof window.CustomEvent === "function" ) return false;
+
+  function CustomEvent ( event, params ) {
+    params = params || { bubbles: false, cancelable: false, detail: undefined };
+    var evt = document.createEvent( 'CustomEvent' );
+    evt.initCustomEvent( event, params.bubbles, params.cancelable, params.detail );
+    return evt;
+   }
+
+  CustomEvent.prototype = window.Event.prototype;
+
+  window.CustomEvent = CustomEvent;
+})();
+
+
+
 // Event Object
 function getNeuralEvent () {
-    return new CustomEvent("neuralEvent", true, true);
+    return new CustomEvent("neuralEvent", function(e) {
+		console.log("Event called with target: " + e.target);
+	});
 }
 
 LOG_LEVEL = 3;
